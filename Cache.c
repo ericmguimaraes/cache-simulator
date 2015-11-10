@@ -3,53 +3,64 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
-
-unsigned int address = 0;
-
-unsigned int S=0, E=0, B=0, m=0, h=0, p=0, t=0, s=0, m=0, b=0, tag=0, setIndex=0, blockOffset=0;
-
-int hits=0, misses=0, counter=0;
-
-char * r-policy;
-
-Cache cache;
+#include <math.h>
 
 typedef struct{
-	Set* sets;
-} Cache;
+	int order; //to help finding the least recently used
+	int valid;
+	int tag;
+	int counter; // to help finding the least frequently used
+	int * blocks; //define content of block
+} Line;
  
 typedef struct{
 	int id;
 	Line* lines;		
-} Set;	
- 
+} Set;
+	
 typedef struct{
-	int order; //to help finding the least recently used
-	int valid = 0;
-	int tag=0;
-	int counter = 0; // to help finding the least frequently used
-	*int blocks; //define content of block
-} Line; 
+	Set* sets;
+} Cache;
+ 
+void initCache();
+void readAddress();	
+void hit(Line * l);
+void miss(Set * set);
+void statistics();
+void insertLine(Line * l);
+
+long address;
+
+
+int S, E, B, m, h, p, t, s, b, tag, setIndex, blockOffset;
+
+int hits, misses, counter;
+
+char rpolicy[3];
+
+Cache cache;
  
 int main(){
-	scanf("d% d% d% d% s% d% d%",S,E,B,m,r-policy,h,p);
+	S=0, E=0, B=0, m=0, h=0, p=0, t=0, s=0, b=0, tag=0, setIndex=0, blockOffset=0;
+	hits=0, misses=0, counter=0;
+	scanf("d% d% d% d% s% d% d%",S,E,B,m,rpolicy,h,p);
 	initCache();
 	readAddress();	
 	scanf("%x",address);			
-	while(address!="-1"){
+	while(address>0){
 		//set selection
-		Set set = cache.set[setIndex];
+		Set set = cache.sets[setIndex];
 		//line matching
 		int found = 0, i;
 		Line line;
 		for(i=0;i<E;i++){
 			if(set.lines[i].valid && set.lines[i].tag == tag){
-				hit(set.lines[i]);
+				hit(&set.lines[i]);
 				found = 1;
 			}				
 		}
 		if(!found)
-			miss(set);
+			miss(&set);
 		scanf("%x",address);			
 	}
 	statistics();
@@ -64,14 +75,15 @@ void initCache(){
 	cache.sets = malloc(S * sizeof(Set));
 	int i;
 	for(i = 0; i<S; i++){
-		cache.sets[i] = malloc(sizeof(Set));
 		cache.sets[i].id = i;
 		cache.sets[i].lines = malloc(E * sizeof(Line));
 		int j;
 		for(j=0;j<E;j++){
-			cache.sets[i].lines[j] = malloc(sizeof(Line));
 			cache.sets[i].lines[j].blocks = malloc( B * sizeof(int)); //TODO define size of a word
+			cache.sets[i].lines[j].valid = 0;
 			cache.sets[i].lines[j].tag = 0;
+			cache.sets[i].lines[j].counter = 0;
+			cache.sets[i].lines[j].order = 0;
 		}
 	}
 }
@@ -79,16 +91,16 @@ void initCache(){
 
 void readAddress(){	
 	scanf("%x",address); //t bits / s bits / b bits
-	int tagMask = ((1 << t) - 1) << s+b;
-	tag = address & tagMask; //t bits
+	int tagMask = ((1 << t) - 1) << (s+b);
+	tag = (address & tagMask) >> (s+b); //t bits
 	int setIndexMask = ((1 << s) - 1) << b;
-	setIndex = address & setIndexMask; //s bits
+	setIndex = (address & setIndexMask) >> b; //s bits
 	int blockMask  = (1 << b) - 1;
 	blockOffset =  address & blockMask; // b bits 
 }
 
 void hit(Line * l){
-	stdout("%x H", address);
+	printf("%x H", address);
 	hits++;
 	l->counter++;
 	l->order = counter;
@@ -96,38 +108,38 @@ void hit(Line * l){
 }
 
 void miss(Set * set){
-	stdout("%x M", address);
+	printf("%x M", address);
 	misses++;
-	if(r-policy == "LRU"){
+	if(rpolicy == "LRU"){
 		//Least-Recently-Used
-		int minIndex=0, min=INT_MAX;
+		int i, minIndex=0, min=INT_MAX;
 		for(i=0;i<E;i++){
-			if(!set.lines[i].valid){
-				insertLine(set.lines[i]);
+			if(!set->lines[i].valid){
+				insertLine(&set->lines[i]);
 				break;
 			}
-			if(set.lines[i].order<min){
+			if(set->lines[i].order<min){
 				minIndex=i;
-				min = set.lines[i].order;
+				min = set->lines[i].order;
 			}
 		}
-		insertLine(set.lines[minIndex]);
-	} else if (r-policy == "LFU"){
+		insertLine(&set->lines[minIndex]);
+	} else if (rpolicy == "LFU"){
 		//Least-Frequently-Used
-		int minIndex=0, min=INT_MAX;
+		int i, minIndex=0, min=INT_MAX;
 		for(i=0;i<E;i++){
-			if(!set.lines[i].valid){
-				insertLine(set.lines[i]);
+			if(!set->lines[i].valid){
+				insertLine(&set->lines[i]);
 				break;
 			}
-			if(set.lines[i].counter<min){
+			if(set->lines[i].counter<min){
 				minIndex=i;
-				min = set.lines[i].order;
+				min = set->lines[i].order;
 			}
 		}
-		insertLine(set.lines[minIndex]);
+		insertLine(&set->lines[minIndex]);
 	} else {
-		stdout("could not recognize the replacement policy");
+		printf("could not recognize the replacement policy");
 	}
 }
 
