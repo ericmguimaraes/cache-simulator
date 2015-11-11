@@ -47,16 +47,18 @@ int main(){
 	scanf("%s",rpolicy);
 	scanf("%d %d",&h,&p);
 	initCache();
-	readAddress();				
+	readAddress();
+	int found, i;				
 	while(address != -1){
 		//set selection
 		Set set = cache.sets[setIndex];
 		//line matching
-		int found = 0, i;
+		found = 0;
 		for(i=0;i<E;i++){
 			if(set.lines[i].valid && set.lines[i].tag == tag){
 				hit(&set.lines[i]);
 				found = 1;
+				break;
 			}				
 		}
 		if(!found)
@@ -90,7 +92,7 @@ void initCache(){
 }
 
 
-void readAddress(){	
+void readAddress(){
 	scanf("%x",&address); //t bits / s bits / b bits
 	int tagMask = ((1 << t) - 1) << (s+b);
 	tag = (address & tagMask) >> (s+b); //t bits
@@ -113,10 +115,11 @@ void miss(Set * set){
 	misses++;
 	if(strcmp(rpolicy,"LRU")==0){
 		//Least-Recently-Used
-		int i, minIndex=0, min=INT_MAX;
+		int i, minIndex=-1, min=INT_MAX, found = 0;
 		for(i=0;i<E;i++){
 			if(!set->lines[i].valid){
 				insertLine(&set->lines[i]);
+				found = 1;
 				break;
 			}
 			if(set->lines[i].order<min){
@@ -124,21 +127,28 @@ void miss(Set * set){
 				min = set->lines[i].order;
 			}
 		}
-		insertLine(&set->lines[minIndex]);
+		if (!found)
+		{
+			insertLine(&set->lines[minIndex]);
+		}
 	} else if (strcmp(rpolicy,"LFU")==0){
 		//Least-Frequently-Used
-		int i, minIndex=0, min=INT_MAX;
+		int i, minIndex=-1, min=INT_MAX, found = 0;
 		for(i=0;i<E;i++){
 			if(!set->lines[i].valid){
 				insertLine(&set->lines[i]);
+				found = 1;
 				break;
 			}
 			if(set->lines[i].counter<min){
 				minIndex=i;
-				min = set->lines[i].order;
+				min = set->lines[i].counter;
 			}
 		}
-		insertLine(&set->lines[minIndex]);
+		if (!found)
+		{
+			insertLine(&set->lines[minIndex]);
+		}
 	} else {
 		printf("could not recognize the replacement policy\n");
 	}
