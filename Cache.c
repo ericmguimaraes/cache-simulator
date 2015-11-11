@@ -1,5 +1,5 @@
-#include<stdio.h>
-#include<stdlib.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
@@ -28,9 +28,9 @@ void hit(Line * l);
 void miss(Set * set);
 void statistics();
 void insertLine(Line * l);
+void freeMemory();
 
-long address;
-
+unsigned int address;
 
 int S, E, B, m, h, p, t, s, b, tag, setIndex, blockOffset;
 
@@ -43,16 +43,16 @@ Cache cache;
 int main(){
 	S=0, E=0, B=0, m=0, h=0, p=0, t=0, s=0, b=0, tag=0, setIndex=0, blockOffset=0;
 	hits=0, misses=0, counter=0;
-	scanf("d% d% d% d% s% d% d%",S,E,B,m,rpolicy,h,p);
+	scanf("%d %d %d %d",&S,&E,&B,&m);
+	scanf("%s",rpolicy);
+	scanf("%d %d",&h,&p);
 	initCache();
-	readAddress();	
-	scanf("%x",address);			
-	while(address>0){
+	readAddress();				
+	while(address != -1){
 		//set selection
 		Set set = cache.sets[setIndex];
 		//line matching
 		int found = 0, i;
-		Line line;
 		for(i=0;i<E;i++){
 			if(set.lines[i].valid && set.lines[i].tag == tag){
 				hit(&set.lines[i]);
@@ -61,8 +61,9 @@ int main(){
 		}
 		if(!found)
 			miss(&set);
-		scanf("%x",address);			
+		readAddress();		
 	}
+	freeMemory();
 	statistics();
 	return 0;
 }
@@ -85,12 +86,12 @@ void initCache(){
 			cache.sets[i].lines[j].counter = 0;
 			cache.sets[i].lines[j].order = 0;
 		}
-	}
+	}	
 }
 
 
 void readAddress(){	
-	scanf("%x",address); //t bits / s bits / b bits
+	scanf("%x",&address); //t bits / s bits / b bits
 	int tagMask = ((1 << t) - 1) << (s+b);
 	tag = (address & tagMask) >> (s+b); //t bits
 	int setIndexMask = ((1 << s) - 1) << b;
@@ -100,7 +101,7 @@ void readAddress(){
 }
 
 void hit(Line * l){
-	printf("%x H", address);
+	printf("%02X H\n", address);
 	hits++;
 	l->counter++;
 	l->order = counter;
@@ -108,9 +109,9 @@ void hit(Line * l){
 }
 
 void miss(Set * set){
-	printf("%x M", address);
+	printf("%02X M\n", address);
 	misses++;
-	if(rpolicy == "LRU"){
+	if(strcmp(rpolicy,"LRU")==0){
 		//Least-Recently-Used
 		int i, minIndex=0, min=INT_MAX;
 		for(i=0;i<E;i++){
@@ -124,7 +125,7 @@ void miss(Set * set){
 			}
 		}
 		insertLine(&set->lines[minIndex]);
-	} else if (rpolicy == "LFU"){
+	} else if (strcmp(rpolicy,"LFU")==0){
 		//Least-Frequently-Used
 		int i, minIndex=0, min=INT_MAX;
 		for(i=0;i<E;i++){
@@ -139,13 +140,16 @@ void miss(Set * set){
 		}
 		insertLine(&set->lines[minIndex]);
 	} else {
-		printf("could not recognize the replacement policy");
+		printf("could not recognize the replacement policy\n");
 	}
 }
 
 void statistics(){
-	//TODO miss rate - misses/references = misses/(misses+hits)
-	//TODO total cycles
+	//miss rate - misses/references = misses/(misses+hits)
+	printf("%d ", ((int) ((float) misses/(misses+hits)*100)));
+	//total cycles
+	printf("%d\n", hits*h+misses*p);
+	//printf("hits: %d misses: %d h: %d p: %d \n",hits,misses,h,p);
 }
 
 void insertLine(Line * l){
@@ -154,4 +158,15 @@ void insertLine(Line * l){
 	l->counter = 1;
 	l->order = counter;
 	counter++;
+}
+
+void freeMemory(){
+	int i,j;
+	for(i = 0; i<S; i++){
+		for(j=0;j<E;j++){
+			free(cache.sets[i].lines[j].blocks);
+		}
+		free(cache.sets[i].lines);
+	}
+	free(cache.sets);		
 }
