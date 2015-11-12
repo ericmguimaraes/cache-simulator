@@ -158,7 +158,7 @@ void statistics(){
 	//miss rate - misses/references = misses/(misses+hits)
 	printf("%d ", ((int) ((float) misses/(misses+hits)*100)));
 	//total cycles
-	printf("%d\n", hits*h+misses*p);
+	printf("%d\n", hits*h+(misses*(p+h)));
 	//printf("hits: %d misses: %d h: %d p: %d \n",hits,misses,h,p);
 }
 
